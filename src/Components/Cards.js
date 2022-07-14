@@ -12,6 +12,7 @@ import Swiper from "react-native-deck-swiper";
 import { useState } from "react";
 import { AntDesign, Entypo, Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
+import generateId from "../../lib/generateId";
 import {
   onSnapshot,
   collection,
@@ -20,75 +21,23 @@ import {
   getDocs,
   query,
   where,
+  getDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import useAuth from "../Hooks/useAuth";
 import { db } from "../../firebase";
-const cards = [
-  {
-    id: 1,
-    businessname: "YASSIR",
-    description:
-      "A travel company that provides transportation services all over North Africa",
-    logoURL: "https://iconape.com/wp-content/png_logo_vector/yassir-logo.png",
-    location: {
-      name: "Algiers, Algeria",
-      lat: "",
-      lng: "",
-      desc: "",
-    },
-  },
-  {
-    id: 2,
-    businessname: "Qooxy",
-    description:
-      "A delivery agency that provides food delivery as well as grocery services",
-    logoURL:
-      "https://play-lh.googleusercontent.com/p0PwBn6Jp3J8zazVvxBKslyEGi9nCFRXNq0wwrijJ2tTNW_su6jUYX6uS39wJEVLg3D9",
-    location: {
-      name: "Setif, Algeria",
-      lat: "",
-      lng: "",
-      desc: "",
-    },
-  },
-  {
-    id: 3,
-    businessname: "SACOM",
-    description:
-      "A marketing agency that provides marketing and branding possibilities for all types of companies",
-    logoURL:
-      "https://scontent.fqsf1-2.fna.fbcdn.net/v/t1.6435-9/74466976_108640780586558_6745166728717664256_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=jgGIrLDq5I0AX8cuhvI&_nc_ht=scontent.fqsf1-2.fna&oh=00_AT_sQ9xgm5kPw8K6Ijz4uAb4ew99DEpQhFnPvg45WOwtCw&oe=62E46336",
-    location: {
-      name: "Setif, Algeria",
-      lat: "",
-      lng: "",
-      desc: "",
-    },
-  },
-  {
-    id: 4,
-    businessname: "Booster",
-    description:
-      "An agency that matches between investors and local Algerian businesses",
-    logoURL:
-      "https://www.seekpng.com/png/detail/459-4595227_free-handshake-logo-png-clip-art-hand-shake.png",
-    location: {
-      name: "",
-      lat: "",
-      lng: "",
-      desc: "",
-    },
-  },
-];
+import { useNavigation } from "@react-navigation/native";
+
 export default function Cards() {
   const swipeRef = useRef(null);
   const { user } = useAuth();
-
+  const navigation = useNavigation();
   const [profiles, setProfiles] = useState([]);
 
   useEffect(() => {
     let unsub;
     const fetchCards = async () => {
+      //We have to await the docs or it would not work
       const passes = await getDocs(
         collection(db, "users", user.uid, "passes")
       ).then((snapshot) =>
@@ -97,12 +46,23 @@ export default function Cards() {
         })
       );
 
+      //We have to await the docs or it would not work
+      const swipes = await getDocs(
+        collection(db, "users", user.uid, "swipes")
+      ).then((snapshot) =>
+        snapshot.docs.map((doc) => {
+          doc.id;
+        })
+      );
+
       const passedUserIds = passes.length > 0 ? passes : ["test"];
+      const swipedUserIds = swipes.length > 0 ? swipes : ["test"];
+
       //query the the users that have not yet been swiped left/right
       unsub = onSnapshot(
         query(
           collection(db, "users"),
-          where("id", "not-in", [...passedUserIds])
+          where("id", "not-in", [...passedUserIds, ...swipedUserIds])
         ),
         (snapshot) => {
           //filter the current user out of the users shown
@@ -122,18 +82,41 @@ export default function Cards() {
     return unsub;
   }, []);
 
-  const swipeLeft = (cardIndex) => {
+  const swipeLeft = async (cardIndex) => {
     if (!profiles[cardIndex]) return;
-
     const userSwiped = profiles[cardIndex];
-    console.log(`You swiped left on ${userSwiped.businessname}`);
+
     setDoc(doc(db, "users", user.uid, "passes", userSwiped.id), userSwiped);
   };
-  const swipeRight = (cardIndex) => {
+  const swipeRight = async (cardIndex) => {
     if (!profiles[cardIndex]) return;
-
     const userSwiped = profiles[cardIndex];
-    console.log(`You swiped right on ${userSwiped.businessname}`);
+    const currentUser = await (await getDoc(doc(db, "users", user.uid))).data();
+    setDoc(doc(db, "users", user.uid, "swipes", userSwiped.id), userSwiped);
+    getDoc(doc(db, "users", userSwiped.id, "swipes", user.uid)).then(
+      //check if user swiped the curent user
+      (snapshot) => {
+        if (snapshot.exists()) {
+          console.log("it's a match!");
+
+          //Create a match
+          setDoc(doc(db, "matches", generateId(user.uid, userSwiped.id)), {
+            users: {
+              [user.uid]: currentUser,
+              [userSwiped.id]: userSwiped,
+            },
+            usersMatched: [user.uid, userSwiped.id],
+            timestamp: serverTimestamp(),
+          });
+
+          navigation.navigate("MatchScreen", { currentUser, userSwiped });
+        } else {
+          //didnt get swiped on yet
+          //or go passed
+          console.log("not a match yet");
+        }
+      }
+    );
   };
 
   // console.log(profiles);
@@ -230,9 +213,6 @@ export default function Cards() {
                 />
               </View>
             );
-          }}
-          onSwiped={(cardIndex) => {
-            // console.log(cardIndex);
           }}
           onSwipedLeft={(cardIndex) => {
             // console.log("Swipe left!");

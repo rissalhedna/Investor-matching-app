@@ -47,7 +47,10 @@ const HomeScreen = () => {
         >
           <Image source={Logo} style={styles.logo} />
         </TouchableOpacity>
-        <TouchableOpacity style={{ top: 10, right: 5 }}>
+        <TouchableOpacity
+          style={{ top: 10, right: 5 }}
+          onPress={() => navigation.navigate("ChatScreen")}
+        >
           <Ionicons name="chatbubbles-sharp" size={30} />
         </TouchableOpacity>
       </View>

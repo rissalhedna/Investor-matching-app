@@ -6,6 +6,7 @@ import StackNavigator from "./src/Navigation/StackNavigator";
 import { AuthProvider } from "./src/Hooks/useAuth";
 
 export default function App() {
+  console.disableYellowBox = true;
   return (
     <NavigationContainer>
       <AuthProvider>
