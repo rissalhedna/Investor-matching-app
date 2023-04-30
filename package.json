@@ -31,7 +31,8 @@
     "react-native-web": "0.17.7",
     "tailwind-react-native-classnames": "^1.5.1",
     "tailwind-rn": "^4.2.0",
-    "tw-rn": "^0.0.20"
+    "tw-rn": "^0.0.20",
+    "update": "^0.7.4"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9"

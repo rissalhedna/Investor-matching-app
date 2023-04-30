@@ -91,7 +91,7 @@ const MatchScreen = () => {
 
       <TouchableOpacity
         onPress={() => {
-          navigation.navigate("ChatScreen");
+          navigation.replace("ChatScreen");
         }}
         style={{
           marginTop: 80,
